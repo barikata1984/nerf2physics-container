@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -e -o pipefail
 
 # =============================================================================
 # Container entrypoint
@@ -76,27 +76,17 @@ done
 # ---- Materialise pixi environment from ${WORKSPACE_DIR}/pixi.toml -----------
 # Runs as the target (non-root) user so that .pixi/ is owned by them.
 #
-# Strategy:
-#   - First run (no pixi.lock): plain `pixi install` to generate the lock.
-#   - Subsequent runs:           `pixi install --locked` to verify lock matches
-#                                pixi.toml and fail loudly on drift, instead of
-#                                silently relocking and producing a different
-#                                env from teammates'.
+# `pixi.lock` is tracked, so startup always verifies that it matches the
+# manifest instead of silently resolving a different environment.
 # After editing pixi.toml, run `pixi install` (no flag) inside the container
 # once to refresh pixi.lock, then commit both files together.
 if [ -f "${WORKSPACE_DIR}/pixi.toml" ] || [ -f "${WORKSPACE_DIR}/pyproject.toml" ]; then
-    if [ -f "${WORKSPACE_DIR}/pixi.lock" ]; then
-        PIXI_INSTALL_FLAGS="--locked"
-        echo "Verifying pixi environment against lockfile..."
-    else
-        PIXI_INSTALL_FLAGS=""
-        echo "Resolving pixi environment (no lockfile yet)..."
-    fi
+    echo "Verifying pixi environment against lockfile..."
     if [ "$(id -u)" = "0" ] && [ "${TARGET_USER}" != "root" ]; then
-        gosu "${TARGET_USER}" pixi install ${PIXI_INSTALL_FLAGS} --manifest-path "${WORKSPACE_DIR}" 2>&1 | tail -5 || \
+        gosu "${TARGET_USER}" pixi install --locked --manifest-path "${WORKSPACE_DIR}" 2>&1 | tail -5 || \
             echo "WARNING: pixi install failed (non-fatal, continuing...)"
     else
-        pixi install ${PIXI_INSTALL_FLAGS} --manifest-path "${WORKSPACE_DIR}" 2>&1 | tail -5 || \
+        pixi install --locked --manifest-path "${WORKSPACE_DIR}" 2>&1 | tail -5 || \
             echo "WARNING: pixi install failed (non-fatal, continuing...)"
     fi
 fi

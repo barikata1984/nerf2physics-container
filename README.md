@@ -156,9 +156,7 @@ Claude Code, Python, Pylance, Ruff, Jupyter, Docker, GitLens, Git Graph, Debugpy
 
 1. 初回起動時に zsh の設定ファイルを生成（`pixi shell-hook` を `.zshrc` に組み込み）
 2. `~/.cache`, `~/.cache/rattler`, `~/.local`, `~/.config`, `~/.claude`, `~/.pixi` を作成 & 非 root ユーザー所有に変更（named volume / `PIXI_HOME` の root 所有を補正）
-3. `${WORKSPACE_DIR}/pixi.toml` から pixi 環境を `${WORKSPACE_DIR}/.pixi/envs/default` に materialize
-   - `pixi.lock` がある場合: `pixi install --locked` で整合検証
-   - 無い場合: `pixi install` で lock を新規生成
+3. `${WORKSPACE_DIR}/pixi.toml` と追跡済みの `pixi.lock` から、`pixi install --locked` で pixi 環境を `${WORKSPACE_DIR}/.pixi/envs/default` に materialize
 4. `pyproject.toml` があれば pixi 環境の pip でプロジェクトを editable install
 5. `gosu` で非 root ユーザーに切替してコマンドを実行
 

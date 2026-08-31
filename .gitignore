@@ -14,7 +14,6 @@ logs/
 
 # Pixi — environment is materialised at runtime.
 .pixi/
-pixi.lock
 
 # Docker — machine-specific files (use .env.example as template)
 .devcontainer/.env
