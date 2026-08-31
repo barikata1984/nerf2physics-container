@@ -32,7 +32,7 @@ cd my-new-project
 
 ### 2. プロジェクト名を書き換える
 
-[pixi.toml](pixi.toml) の `[workspace].name` を新しい名前に書き換える。これが image tag・compose project name・Claude Code 履歴ディレクトリ名を貫く **唯一の SSoT (Single Source of Truth)**。
+[pixi.toml](pixi.toml) の `[workspace].name` を新しい名前に書き換える。これが image tag と compose project name を決める **唯一の SSoT (Single Source of Truth)**。
 
 ```toml
 [workspace]
@@ -136,17 +136,8 @@ docker compose exec dev zsh
 | プロジェクトルート | `${WORKSPACE_DIR}` (既定 `/workspace`) | ワークスペース |
 | `~/.ssh` | `~/.ssh` (ro) | SSH 鍵 |
 | `~/.gitconfig` | `~/.gitconfig` (ro) | Git 設定 |
-| `~/.claude/CLAUDE.md` | `~/.claude/CLAUDE.md` | Claude Code: ユーザーレベル指示 |
-| `~/.claude/skills` | `~/.claude/skills` | Claude Code: カスタム skill |
-| `~/.claude/agents` | `~/.claude/agents` | Claude Code: サブエージェント定義 |
-| `~/.claude/hooks` | `~/.claude/hooks` | Claude Code: hook スクリプト |
-| `~/.claude/settings.json` | `~/.claude/settings.json` | Claude Code: global 設定 |
-| `~/.claude/keybindings.json` | `~/.claude/keybindings.json` | Claude Code: キーバインド |
-| `~/.claude/rules` | `~/.claude/rules` | Claude Code: CLAUDE.md から参照される個人ルール |
 | `/tmp/.X11-unix` | `/tmp/.X11-unix` | GUI 転送 |
 | named volume | `~/.cache/rattler` | pixi/conda パッケージキャッシュ永続化 |
-
-> Claude Code の会話履歴・todos・shell snapshots は別途ホスト側 `~/.claude-stacks/${COMPOSE_PROJECT_NAME}/` に bind mount され、rebuild を跨いで保持される（詳細は[後述](#claude-code-履歴の永続化)）。一方 `.credentials.json` (認証) と `~/.claude.json` (MCP) はコンテナ独立で、初回利用時は `claude` で再ログインが必要。
 
 ### VS Code 拡張 (14個)
 
@@ -225,22 +216,6 @@ docker compose -f .devcontainer/docker-compose.yaml exec dev sh -c 'echo $WANDB_
 - **Token rotation**: 漏洩疑いがあれば dashboard で revoke → 新規生成 → 各マシンの `~/.config/doppler.env` を更新
 - **プロジェクトごとに別 config を使いたい場合**: `.devcontainer/docker-compose.override.yaml` (gitignored) で `env_file:` を上書きする
 - **wandb など `.netrc` ベースのツール**: env var (`WANDB_API_KEY` 等) が優先されるので、Doppler 経由で渡せば `.netrc` マウントは不要にできる
-
-### Claude Code 履歴の永続化
-
-Claude Code のセッション履歴（`~/.claude/{projects,sessions,todos,shell-snapshots}` の 4 ディレクトリ）はホスト側 `~/.claude-stacks/${COMPOSE_PROJECT_NAME}/` 配下に bind mount され、`docker compose down` や rebuild を跨いで保持される。コンテナ内で `claude --resume` すれば過去スレッドを選択できる。
-
-| カテゴリ | 役割 |
-|---|---|
-| `projects/<encoded-cwd>/<uuid>.jsonl` | 会話本体（resume の読み元） |
-| `sessions/<sid>.json` | セッションメタ |
-| `todos/` | TodoWrite 状態 |
-| `shell-snapshots/` | resume 時に必要なシェル状態 |
-
-- ホスト側ディレクトリは [.devcontainer/init-env.sh](.devcontainer/init-env.sh) が `mkdir -p` で事前作成（ホスト UID 所有を保証）
-- `COMPOSE_PROJECT_NAME` 単位で独立。同テンプレートを複数プロジェクトでフォークしても履歴は混ざらない
-- 認証 (`.credentials.json`) と telemetry (`statsig/`, `ide/`) はマウント対象外。コンテナごとに `/login` 必要
-- マシン跨ぎ同期は対象外（必要なら `borg`/`restic` 等で `~/.claude-stacks/` をバックアップ）
 
 ## カスタマイズ例
 

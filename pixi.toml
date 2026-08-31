@@ -11,7 +11,6 @@
 [workspace]
 # This `name` is the SSoT for the project identifier. It is reused as:
 #   - docker compose project name (image tag, network, volume prefix)
-#   - the directory name for Claude Code session-history persistence
 # `init-env.sh` extracts this value at host-side initialisation; do not
 # duplicate it elsewhere.
 name = "my-project"           # TODO: rename to your project name

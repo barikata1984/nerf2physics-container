@@ -5,9 +5,6 @@
 #   - the project name extracted from <repo>/pixi.toml (SSoT)
 #   - the default values declared below
 #
-# Also pre-creates Claude Code session-history dirs as the host user so Docker
-# never auto-creates them as root on first `compose up`.
-#
 # - VS Code devcontainer:  runs automatically via initializeCommand
 # - CLI (standalone):       run once with `bash .devcontainer/init-env.sh`
 #
@@ -79,9 +76,6 @@ if [ -z "${PROJECT_NAME}" ]; then
     echo "[init-env] ERROR: could not extract [workspace].name (or [project].name) from ${PIXI_TOML}." >&2
     exit 1
 fi
-
-# ----- Pre-create Claude Code session-history dirs (always, idempotent) ------
-mkdir -p "$HOME/.claude-stacks/${PROJECT_NAME}"/{projects,sessions,todos,shell-snapshots}
 
 # ----- Generate .devcontainer/.env (only if absent) --------------------------
 if [ -f "${ENV_FILE}" ]; then
