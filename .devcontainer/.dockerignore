@@ -12,6 +12,3 @@
 
 # Local-only compose overrides.
 docker-compose.override.yaml
-
-# Pixi environment (materialised at runtime via bind-mounted /workspace).
-.pixi/

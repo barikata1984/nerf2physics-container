@@ -3,7 +3,6 @@ __pycache__/
 *.egg-info/
 dist/
 build/
-.venv/
 *.pt
 *.ckpt
 wandb/
@@ -11,9 +10,6 @@ runs/
 outputs/
 logs/
 .DS_Store
-
-# Pixi — environment is materialised at runtime.
-.pixi/
 
 # Docker — machine-specific files (use .env.example as template)
 .devcontainer/.env

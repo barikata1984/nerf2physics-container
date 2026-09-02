@@ -20,8 +20,6 @@
           "zsh": { "path": "/bin/zsh" }
         },
 
-        // Python (pixi-managed environment, materialised at /workspace/.pixi/envs/default)
-        "python.defaultInterpreterPath": "/workspace/.pixi/envs/default/bin/python",
         "python.analysis.extraPaths": [
           "/workspace/src"
         ],
@@ -62,10 +60,7 @@
         "ms-python.vscode-pylance",
         "charliermarsh.ruff",
 
-        // --- Pixi (environment manager; mirrors entrypoint.sh / Dockerfile setup) ---
-        "jjjermiah.pixi-vscode",       // project mgmt UI (tasks, env switcher)
-        "renan-r-santos.pixi-code",    // Pixi integration for the Python Environments extension
-        "ms-python.vscode-python-envs", // dep of pixi-code; declared explicitly for clarity
+        "ms-python.vscode-python-envs",
 
         // --- Jupyter (interactive prototyping) ---
         "ms-toolsai.jupyter",
@@ -97,8 +92,6 @@
   // Runs on the host before the container starts.
   // Generates .devcontainer/.env from the host's UID/GID if absent (idempotent).
   "initializeCommand": ["bash", ".devcontainer/init-env.sh"],
-
-  "postCreateCommand": "echo '=== Dev container ready ===' && python --version",
 
   "shutdownAction": "none"
 }

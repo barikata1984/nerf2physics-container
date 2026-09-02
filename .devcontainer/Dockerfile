@@ -2,7 +2,7 @@
 # Development Container — Base Template
 # =============================================================================
 # Base: NVIDIA CUDA + Ubuntu 24.04
-# Adds:  pixi (Python env manager), GPU rendering libs, dev tooling, non-root user
+# Adds:  GPU rendering libs, dev tooling, non-root user
 #
 # Build:  docker compose build
 # Run:    docker compose up -d
@@ -57,17 +57,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 ENV LANG=${LOCALE}
 ENV LC_ALL=${LOCALE}
 
-# ---- pixi (Python environment manager) --------------------------------------
-# The binary lands in /usr/local/bin so all users see it on PATH without extra
-# shell config. PIXI_HOME (where pixi keeps global envs / config) is set later,
-# after the non-root user is created, so writes go to that user's home and not
-# to a root-owned system directory.
-# The actual project environment is materialised at runtime (entrypoint) from
-# ${WORKSPACE_DIR}/pixi.toml into ${WORKSPACE_DIR}/.pixi/envs/default.
-ENV PIXI_BIN_DIR=/usr/local/bin PIXI_NO_PATH_UPDATE=1
-RUN curl -fsSL https://pixi.sh/install.sh | sh \
-    && pixi --version
-
 # ---- Doppler CLI (fetches secrets per-shell via /etc/zsh/zshenv below) -----
 RUN curl -Ls --tlsv1.2 --proto "=https" --retry 3 https://cli.doppler.com/install.sh \
         | sh -s -- --no-package-manager \
@@ -97,11 +86,6 @@ if [ -n "${DOPPLER_TOKEN:-}" ] && command -v doppler >/dev/null 2>&1; then
     fi
     unset _doppler_env DOPPLER_TOKEN
 fi
-
-# Pixi-managed Python environment: add the default env's bin to PATH so that
-# python/pip/etc. resolve in non-interactive shells (postCreateCommand, scripts)
-# where ~/.zshrc's pixi shell-hook does not run.
-[[ -d "${WORKSPACE_DIR}/.pixi/envs/default/bin" ]] && export PATH="${WORKSPACE_DIR}/.pixi/envs/default/bin:${PATH}"
 
 # ~/.local/bin: native CLI installs (e.g. claude install) land here.
 [[ -d "${HOME}/.local/bin" ]] && export PATH="${HOME}/.local/bin:${PATH}"
@@ -143,12 +127,6 @@ RUN if getent group ${HOST_GID} >/dev/null 2>&1; then \
     && echo "${HOST_USER} ALL=(ALL) NOPASSWD:ALL" \
        > /etc/sudoers.d/container-user \
     && chmod 0440 /etc/sudoers.d/container-user
-
-# Point pixi at the non-root user's home for global envs / config. Without
-# this, `pixi info` and other global ops try to create /usr/local/envs and
-# fail with Permission denied. The project-local env in ${WORKSPACE_DIR}/.pixi
-# is unaffected. entrypoint.sh chowns this directory at startup.
-ENV PIXI_HOME=/home/${HOST_USER}/.pixi
 
 # ---- Entrypoint -------------------------------------------------------------
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
