@@ -1,0 +1,73 @@
+[project]
+name = "nerf2physics-local"
+description = "NeRF2Physics + Nerfstudio, isolated pixi environment (local density-volume extension)"
+channels = ["nvidia/label/cuda-11.8.0", "nvidia", "conda-forge", "pytorch"]
+platforms = ["linux-64"]
+
+[system-requirements]
+libc = { family = "glibc", version = "2.30" }
+
+# -----------------------------------------------------------------------------
+# Conda-managed deps: pinned to match nerfstudio's own official pixi.toml
+# (https://github.com/nerfstudio-project/nerfstudio/blob/main/pixi.toml), so
+# the CUDA 11.8 toolkit / tinycudann / colmap combination is a proven pairing.
+# This CUDA 11.8 toolkit is installed *inside* the pixi env only; it does not
+# touch the container's system CUDA 12.8 toolkit or the host NVIDIA driver.
+# -----------------------------------------------------------------------------
+[dependencies]
+python = ">=3.10,<3.11"
+pip = ">=24.0,<25"
+cuda = { version = "*", channel = "nvidia/label/cuda-11.8.0" }
+pytorch-cuda = { version = "11.8.*", channel = "pytorch" }
+pytorch = { version = ">=2.2.0,<2.3", channel = "pytorch" }
+torchvision = { version = ">=0.17.0,<0.18", channel = "pytorch" }
+pyarrow = ">=15.0.2,<15.1"
+colmap = ">=3.9.1,<3.10"
+# colmap/pyarrow pull in conda numpy; pin <2 to match the NumPy-1.x-ABI pytorch build below.
+numpy = "<2"
+# conda's own python/pip pull in a recent setuptools that dropped pkg_resources
+# (tiny-cuda-nn's setup.py still needs it); pin <81 here too.
+setuptools = "<81"
+# CUDA 11.8's nvcc rejects host compilers newer than gcc 11 (the container's
+# system gcc is 13). Provide a matching gcc/g++ inside the isolated pixi env
+# only -- this does not touch the system compiler.
+gcc_linux-64 = "11.*"
+gxx_linux-64 = "11.*"
+# Optional mayavi-based volumetric rendering (scripts/visualize_density_volume_mayavi.py),
+# adapted from the same author's pixi-wisp repo. conda-forge mayavi pulls in a
+# vtk-base build pinned <9.5 (numpy.in1d-based, hence numpy<2 above already covers it).
+mayavi = "*"
+pyqt = "*"
+pyside6 = "*"
+
+# -----------------------------------------------------------------------------
+# PyPI-managed deps: Nerfstudio itself (v1.1.x, tested against torch 2.2/cu118)
+# plus NeRF2Physics's own requirements.txt, pinned as the upstream repo pins
+# them (notably openai==0.28, the pre-1.0 SDK the original gpt_inference.py
+# code is written against).
+# -----------------------------------------------------------------------------
+[pypi-dependencies]
+nerfstudio = ">=1.1.3,<1.2"
+# pinned <2: the conda-managed pytorch 2.2 build here is linked against the
+# NumPy 1.x C-API; NumPy 2.x causes an ABI mismatch warning/crash risk.
+numpy = "<2"
+pillow = "*"
+matplotlib = "*"
+transformers = "<4.50"
+open_clip_torch = "*"
+open3d = "*"
+openai = "==0.28"
+scikit-learn = "*"
+# optional --llm_provider anthropic path (material_proposal.py); no legacy
+# pinning needed, unlike openai==0.28 -- the Anthropic SDK is actively maintained.
+anthropic = "*"
+
+[tasks]
+# tiny-cuda-nn is not on PyPI; build it against the pinned CUDA 11.8 / torch env.
+# (Mirrors the tcnn-install task in nerfstudio's own pixi.toml.)
+# pinned to the commit built/verified in this repo (2026-09); tcnn targets the local GPU arch at build time.
+tcnn-install = "python -c 'import tinycudann as tcnn' || python -m pip install ninja git+https://github.com/NVlabs/tiny-cuda-nn/@749dd70c5afc5a9dadb85e5652ed65d55e0ba187#subdirectory=bindings/torch"
+post-install = { cmd = "pwd", depends-on = ["tcnn-install"] }
+
+check-cuda = "python -c \"import torch; print('torch', torch.__version__, 'cuda available:', torch.cuda.is_available(), torch.cuda.get_device_name(0) if torch.cuda.is_available() else '')\""
+check-nerfstudio = { cmd = "ns-train --help && ns-process-data --help && ns-export --help", depends-on = ["post-install"] }

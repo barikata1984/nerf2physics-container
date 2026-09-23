@@ -25,6 +25,9 @@ def get_args():
                         help='near plane for ray sampling (default: 0.4)')
     parser.add_argument('--far_plane', type=float, default=6.0,
                         help='far plane for ray sampling (default: 6.0)')
+    parser.add_argument('--proposal_initial_sampler', type=str, default='uniform', choices=['uniform', 'piecewise'],
+                        help='nerfacto proposal-initial-sampler (default: uniform, as upstream hard-coded). '
+                             'uniform over [near, far] under-samples small/thin objects -- see README_LOCAL.md')
     parser.add_argument('--vis_mode', type=str, default='wandb',
                         help='nerfstudio visualization mode (default: wandb)')
     parser.add_argument('--project_name', type=str, default='NeRF2Physics',
@@ -63,8 +66,13 @@ def get_args():
                         help='property to predict (default: density)')
     parser.add_argument('--include_thickness', type=int, default=1,
                         help='whether to also predict thickness (default: 1)')
+    parser.add_argument('--llm_provider', type=str, default="openai", choices=["openai", "anthropic"],
+                        help='LLM backend for material proposal (default: openai); prompt text and '
+                             'output parsing are identical for both, only the API call differs')
     parser.add_argument('--gpt_model_name', type=str, default="gpt-3.5-turbo",
-                        help='GPT model name (default: gpt-3.5-turbo)')
+                        help='LLM model name, for whichever --llm_provider is selected '
+                             '(default: gpt-3.5-turbo; pass e.g. a claude-* model name when using '
+                             '--llm_provider anthropic)')
     parser.add_argument('--mats_save_name', type=str, default="info_new",
                         help='candidate materials save name (default: info_new)')
     
@@ -113,6 +121,15 @@ def get_args():
                         help='maximum physical property value for colormap (default: 3500)')
     parser.add_argument('--viz_save_name', type=str, default="tmp",
                         help='visualization save name (default: tmp)')
+    parser.add_argument('--pt_size', type=float, default=8,
+                        help='Open3D point size (px) used by visualization.py\'s render_pcd() (default: '
+                             '8, matches upstream). Fixed-size splats can visibly inflate a render beyond '
+                             'the true silhouette when the object is only a few tens of pixels wide -- '
+                             'lower this for thin objects/tight framings.')
+    parser.add_argument('--view_idx', type=int, default=-1,
+                        help='camera view index to render in visualization.py (default: -1, meaning '
+                             "auto -- reuse the same 'informative' view captioning.py picked via "
+                             '--mask_area_percentile, instead of always frame 0)')
 
     args = parser.parse_args()
 

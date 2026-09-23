@@ -17,3 +17,11 @@ logs/
 
 # Claude Code local settings
 .claude/settings.local.json
+
+# --- nerf2physics-container: large / local-only artifacts ---
+NeRF2Physics.local/
+blip2-flan-t5-xl/
+literature/
+image*.png
+*_merged_seed42/
+lego/

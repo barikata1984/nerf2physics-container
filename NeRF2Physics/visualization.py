@@ -1,4 +1,5 @@
-import numpy as np 
+import json
+import numpy as np
 import open3d as o3d
 import os
 import torch
@@ -152,17 +153,31 @@ if __name__ == '__main__':
                  savefile=os.path.join(out_dir, '%s_legend.png' % args.viz_save_name), show=args.show)
     
     # camera for rendering
+    # local-density-volume patch: the original hardcodes view_idx=0, which for
+    # some datasets (e.g. camera orderings where frame 0 isn't a good framing)
+    # renders the object tiny/off-center. Default instead to the same
+    # informative view captioning.py already picked (mask-area percentile
+    # heuristic); --view_idx still lets you pick an explicit frame.
     w2cs, K = parse_transforms_json(t_file, return_w2c=True)
-    view_idx = 0
+    view_idx = args.view_idx
+    if view_idx < 0:
+        info_file = os.path.join(scene_dir, '%s.json' % args.mats_load_name)
+        with open(info_file, 'r') as f:
+            view_idx = int(json.load(f).get('idx_to_caption', 0))
     w2c = w2cs[view_idx]
     w2c[[1, 2]] *= -1  # convert from nerfstudio to open3d format
     imgs = load_images(os.path.join(scene_dir, 'images'))
     orig_img = imgs[view_idx] / 255.
+    # local-density-volume patch: render_pcd()'s hw defaults to (1024, 1024),
+    # which silently assumed ABO-500's own image resolution. composite_and_save()
+    # then fails to broadcast against orig_img for any other resolution (ours is
+    # 800x800). Render at the actual image resolution instead.
+    render_hw = orig_img.shape[:2]
 
     # RGB reconstruction
     rgb_pcd = o3d.io.read_point_cloud(pcd_file)
     rgb_pcd.points = o3d.utility.Vector3dVector(query_pts.cpu().numpy())
-    render = render_pcd(rgb_pcd, w2c, K, show=args.show)
+    render = render_pcd(rgb_pcd, w2c, K, hw=render_hw, pt_size=args.pt_size, show=args.show)
     if not args.show:
         Image.fromarray(imgs[view_idx]).save(os.path.join(out_dir, '%s_rgb.png' % args.viz_save_name))
 
@@ -171,27 +186,27 @@ if __name__ == '__main__':
     pca_pcd.points = o3d.utility.Vector3dVector(query_pts.cpu().numpy())
     colors_pca = features_to_colors(result['query_features'])
     pca_pcd.colors = o3d.utility.Vector3dVector(colors_pca)
-    render = render_pcd(pca_pcd, w2c, K, show=args.show)
+    render = render_pcd(pca_pcd, w2c, K, hw=render_hw, pt_size=args.pt_size, show=args.show)
     if not args.show:
         combined = composite_and_save(orig_img, render, args.compositing_alpha,
             savefile=os.path.join(out_dir, '%s_pca.png' % args.viz_save_name))
-        
+
     # material segmentation
     seg_pcd = o3d.geometry.PointCloud()
     seg_pcd.points = o3d.utility.Vector3dVector(query_pts.cpu().numpy())
     colors_seg = similarities_to_colors(result['query_similarities'])
     seg_pcd.colors = o3d.utility.Vector3dVector(colors_seg)
-    render = render_pcd(seg_pcd, w2c, K, show=args.show)
+    render = render_pcd(seg_pcd, w2c, K, hw=render_hw, pt_size=args.pt_size, show=args.show)
     if not args.show:
         combined = composite_and_save(orig_img, render, args.compositing_alpha,
             savefile=os.path.join(out_dir, '%s_seg.png' % args.viz_save_name))
-        
+
     # physical property values
     val_pcd = o3d.geometry.PointCloud()
     val_pcd.points = o3d.utility.Vector3dVector(query_pts.cpu().numpy())
     colors_val = values_to_colors(np.mean(result['query_pred_vals'], axis=1), args.cmap_min, args.cmap_max)
     val_pcd.colors = o3d.utility.Vector3dVector(colors_val)
-    render = render_pcd(val_pcd, w2c, K, show=args.show)
+    render = render_pcd(val_pcd, w2c, K, hw=render_hw, pt_size=args.pt_size, show=args.show)
     if not args.show:
         combined = composite_and_save(orig_img, render, args.compositing_alpha,
             savefile=os.path.join(out_dir, '%s_%s.png' % (args.viz_save_name, args.property_name)))

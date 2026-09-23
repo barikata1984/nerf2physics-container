@@ -4,6 +4,13 @@ viz/
 *.pt
 my_api_key.py
 
+# local env / large downloads (see README_LOCAL.md)
+# NOTE: pixi.lock is intentionally NOT ignored -- commit it for reproducibility.
+.pixi/
+blip2-flan-t5-xl/
+outputs/
+.env
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

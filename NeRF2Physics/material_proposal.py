@@ -7,10 +7,18 @@ import matplotlib.pyplot as plt
 from PIL import Image
 
 from gpt_inference import gpt_candidate_materials, gpt_thickness, parse_material_list, \
-    parse_material_hardness, gpt4v_candidate_materials, parse_material_json
+    parse_material_hardness, gpt4v_candidate_materials, parse_material_json, \
+    claude_candidate_materials, claude_thickness
 from utils import load_images, get_scenes_list
 from arguments import get_args
-from my_api_key import OPENAI_API_KEY
+
+# my_api_key.py is only required for --llm_provider openai (the default);
+# --llm_provider anthropic reads ANTHROPIC_API_KEY from the environment via
+# the anthropic SDK's own convention, so don't hard-fail the import here.
+try:
+    from my_api_key import OPENAI_API_KEY
+except ImportError:
+    OPENAI_API_KEY = None
 
 
 BASE_SEED = 100
@@ -56,7 +64,8 @@ def predict_candidate_materials(args, scene_dir, show=False):
     
     caption = info['caption']
 
-    gpt_fn = lambda seed: gpt_candidate_materials(caption, property_name=args.property_name, 
+    candidate_materials_fn = claude_candidate_materials if args.llm_provider == 'anthropic' else gpt_candidate_materials
+    gpt_fn = lambda seed: candidate_materials_fn(caption, property_name=args.property_name,
                                                   model_name=args.gpt_model_name, seed=seed)
     parse_fn = parse_material_hardness if args.property_name == 'hardness' else parse_material_list
     candidate_materials = gpt_wrapper(gpt_fn, parse_fn)
@@ -128,8 +137,9 @@ def predict_thickness(args, scene_dir, mode='list', show=False):
         raise NotImplementedError
     candidate_materials = info['candidate_materials_density']
 
-    gpt_fn = lambda seed: gpt_thickness(caption, candidate_materials, 
-                                        model_name=args.gpt_model_name,  mode=mode, seed=seed)
+    thickness_fn = claude_thickness if args.llm_provider == 'anthropic' else gpt_thickness
+    gpt_fn = lambda seed: thickness_fn(caption, candidate_materials,
+                                        model_name=args.gpt_model_name, mode=mode, seed=seed)
     thickness = gpt_wrapper(gpt_fn, parse_material_list)
 
     info['thickness'] = thickness
@@ -155,7 +165,13 @@ if __name__ == '__main__':
     scenes_dir = os.path.join(args.data_dir, 'scenes')
     scenes = get_scenes_list(args)
 
-    openai.api_key = OPENAI_API_KEY
+    if args.llm_provider == 'openai':
+        if OPENAI_API_KEY is None:
+            raise RuntimeError('--llm_provider openai requires my_api_key.py with OPENAI_API_KEY set '
+                                '(see README_LOCAL.md "2. API key setup"), or pass --llm_provider anthropic')
+        openai.api_key = OPENAI_API_KEY
+    elif args.llm_provider == 'anthropic' and 'ANTHROPIC_API_KEY' not in os.environ:
+        raise RuntimeError('--llm_provider anthropic requires the ANTHROPIC_API_KEY environment variable')
 
     for j, scene in enumerate(scenes): 
         mats_info = predict_candidate_materials(args, os.path.join(scenes_dir, scene))

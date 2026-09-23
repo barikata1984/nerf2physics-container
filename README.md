@@ -1,3 +1,26 @@
+# nerf2physics-container
+
+NeRF2Physics (CVPR 2024) reproduction + a voxel mass-density extension, packaged
+as a GPU devcontainer. Forked from `docker-devcontainer-template` (remote `upstream`).
+
+- `NeRF2Physics/` — git subtree of [ajzhai/NeRF2Physics](https://github.com/ajzhai/NeRF2Physics)
+  with local patches, the pixi environment (`pixi.toml` / `pixi.lock`), scripts and
+  reference results. **Start with [`NeRF2Physics/README_LOCAL.md`](NeRF2Physics/README_LOCAL.md).**
+- `.devcontainer/` — CUDA 12.8 / Ubuntu 24.04 devcontainer (see template docs below);
+  `postCreateCommand` runs `NeRF2Physics/scripts/setup_env.sh` (pixi env + tiny-cuda-nn).
+
+Quick start (inside the container):
+
+```bash
+cd NeRF2Physics
+scripts/fetch_assets.sh --dataset /path/to/sledgehammer_merged_seed42   # BLIP-2 + scene layout
+scripts/reproduce_sledgehammer.sh                                       # ~30 min on an RTX 3090
+```
+
+Large artifacts (BLIP-2, datasets, trained NeRFs, `.pixi/`) are gitignored on purpose.
+
+---
+
 # Devcontainer Base Template
 
 NVIDIA CUDA + Ubuntu (既定 24.04) ベースの VS Code devcontainer テンプレート。Python の環境管理は各リポジトリに任せ、特定のパッケージ管理ツールを同梱しない。

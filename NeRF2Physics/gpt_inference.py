@@ -2,6 +2,20 @@ import openai
 import base64
 import json
 
+_anthropic_client = None
+
+
+def _get_anthropic_client():
+    """Lazily construct the Anthropic client (reads ANTHROPIC_API_KEY from the
+    environment, same convention as openai.api_key). Only imported when the
+    anthropic provider is actually used, so an openai-only setup doesn't need
+    the anthropic package importable."""
+    global _anthropic_client
+    if _anthropic_client is None:
+        import anthropic
+        _anthropic_client = anthropic.Anthropic()
+    return _anthropic_client
+
 
 PRED_CAND_MATS_DENSITY_SYS_MSG = """You will be provided with captions that each describe an image of an object. The captions will be delimited with quotes ("). Based on the caption, give me 5 materials that the object might be made of, along with the mass densities (in kg/m^3) of each of those materials. You may provide a range of values for the mass density instead of a single value. Try to consider all the possible parts of the object. Do not include coatings like "paint" in your answer.
 
@@ -83,6 +97,29 @@ def gpt_candidate_materials(caption, property_name='density', model_name='gpt-3.
     return response['choices'][0]['message']['content']
 
 
+def claude_candidate_materials(caption, property_name='density', model_name='claude-haiku-4-5-20251001', seed=100):
+    """Same prompt/semantics as gpt_candidate_materials(), routed through the
+    Anthropic Messages API instead of OpenAI's ChatCompletion. `seed` is
+    accepted for call-signature parity with gpt_wrapper() but unused --
+    Anthropic's API has no seed/determinism parameter."""
+    if property_name == 'density':
+        sys_msg = PRED_CAND_MATS_DENSITY_SYS_MSG
+    elif property_name == 'hardness':
+        sys_msg = PRED_CAND_MATS_HARDNESS_SYS_MSG
+    elif property_name == 'friction':
+        sys_msg = PRED_CAND_MATS_FRICTION_SYS_MSG
+    else:
+        raise NotImplementedError
+    client = _get_anthropic_client()
+    response = client.messages.create(
+        model=model_name,
+        max_tokens=300,
+        system=sys_msg,
+        messages=[{"role": "user", "content": '"%s"' % caption}],
+    )
+    return response.content[0].text
+
+
 def gpt_thickness(caption, candidate_materials, mode='list', model_name='gpt-3.5-turbo', seed=100):
 
     if mode == 'list':
@@ -112,6 +149,38 @@ def gpt_thickness(caption, candidate_materials, mode='list', model_name='gpt-3.5
         seed=seed,
     )
     return response['choices'][0]['message']['content']
+
+
+def claude_thickness(caption, candidate_materials, mode='list', model_name='claude-haiku-4-5-20251001', seed=100):
+    """Same prompt/semantics (incl. the same few-shot examples) as
+    gpt_thickness(), routed through the Anthropic Messages API."""
+    if mode == 'list':
+        mat_names, mat_vals = parse_material_list(candidate_materials)
+    elif mode == 'json':
+        caption, mat_names, mat_vals = parse_material_json(candidate_materials)
+    else:
+        raise NotImplementedError
+    mat_names_str = ', '.join(mat_names)
+    user_msg = 'Caption: "%s" Materials: "%s"' % (caption, mat_names_str)
+
+    client = _get_anthropic_client()
+    response = client.messages.create(
+        model=model_name,
+        max_tokens=300,
+        system=PRED_THICKNESS_SYS_MSG,
+        messages=[
+            {"role": "user", "content": PRED_THICKNESS_EXAMPLE_INPUT_1},
+            {"role": "assistant", "content": PRED_THICKNESS_EXAMPLE_OUTPUT_1},
+            {"role": "user", "content": PRED_THICKNESS_EXAMPLE_INPUT_2},
+            {"role": "assistant", "content": PRED_THICKNESS_EXAMPLE_OUTPUT_2},
+            {"role": "user", "content": PRED_THICKNESS_EXAMPLE_INPUT_3},
+            {"role": "assistant", "content": PRED_THICKNESS_EXAMPLE_OUTPUT_3},
+            {"role": "user", "content": PRED_THICKNESS_EXAMPLE_INPUT_4},
+            {"role": "assistant", "content": PRED_THICKNESS_EXAMPLE_OUTPUT_4},
+            {"role": "user", "content": user_msg},
+        ],
+    )
+    return response.content[0].text
 
 
 def parse_material_list(matlist, max_n=5):

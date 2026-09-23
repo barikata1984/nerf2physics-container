@@ -1,5 +1,5 @@
 {
-  "name": "My Project",  // TODO: rename to your project name
+  "name": "nerf2physics-container",
 
   // Use docker-compose as the backend — minimal devcontainer-specific config.
   // The same docker-compose.yaml works standalone with `docker compose up`.
@@ -92,6 +92,10 @@
   // Runs on the host before the container starts.
   // Generates .devcontainer/.env from the host's UID/GID if absent (idempotent).
   "initializeCommand": ["bash", ".devcontainer/init-env.sh"],
+
+  // nerf2physics-container: build the NeRF2Physics pixi environment inside the container
+  // (pixi itself is user-local, no sudo). tiny-cuda-nn compiles for the local GPU (~5 min).
+  "postCreateCommand": "bash NeRF2Physics/scripts/setup_env.sh",
 
   "shutdownAction": "none"
 }

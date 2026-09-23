@@ -21,6 +21,10 @@ if __name__ == '__main__':
         base_dir = os.path.join(scenes_dir, scene, 'ns')
 
         # Calling ns-train
+        # NOTE (local-density-volume branch): --pipeline.datamanager.camera-optimizer.mode
+        # was renamed to --pipeline.model.camera-optimizer.mode between the nerfstudio
+        # version this repo originally targeted and nerfstudio 1.1.5 (pinned in pixi.toml).
+        # Same flag, same semantics (camera pose optimization disabled) -- just relocated.
         result = subprocess.run([
             'ns-train', 'nerfacto',
             '--data', os.path.join(scenes_dir, scene),
@@ -30,12 +34,13 @@ if __name__ == '__main__':
             '--experiment_name', scene,
             '--max_num_iterations', str(args.training_iters),
             '--pipeline.model.background-color', 'random',
-            '--pipeline.datamanager.camera-optimizer.mode', 'off',
-            '--pipeline.model.proposal-initial-sampler', 'uniform',
+            '--pipeline.model.camera-optimizer.mode', 'off',
+            '--pipeline.model.proposal-initial-sampler', args.proposal_initial_sampler,
             '--pipeline.model.near-plane', str(args.near_plane),
             '--pipeline.model.far-plane', str(args.far_plane),
             '--steps-per-eval-image', '10000',
         ])
+        result.check_returncode()
 
         ns_dir = get_last_file_in_folder(os.path.join(base_dir, '%s/nerfacto' % scene))
 
@@ -45,10 +50,14 @@ if __name__ == '__main__':
             os.path.join(ns_dir, 'dataparser_transforms.json'), 
             os.path.join(base_dir, 'dataparser_transforms.json')
         ])
-
-        half_bbox_size = args.bbox_size / 2
+        result.check_returncode()
 
         # Calling ns-export pcd
+        # NOTE (local-density-volume branch): --use-bounding-box/--bounding-box-min/-max
+        # were replaced by an oriented-bounding-box (obb) parameterization in nerfstudio
+        # 1.1.5. obb-scale is the FULL box extent (nerfstudio's OrientedBox.within() tests
+        # against +/-S/2), so obb-scale = bbox_size reproduces the exact same axis-aligned
+        # cube centered at the origin that --bounding-box-min/-max used to describe.
         result = subprocess.run([
             'ns-export', 'pointcloud',
             '--load-config', os.path.join(ns_dir, 'config.yml'),
@@ -56,12 +65,13 @@ if __name__ == '__main__':
             '--num-points', str(args.num_points),
             '--remove-outliers', 'True',
             '--normal-method', 'open3d',
-            '--use-bounding-box', 'True',
-            '--bounding-box-min', str(-half_bbox_size), str(-half_bbox_size), str(-half_bbox_size),
-            '--bounding-box-max', str(half_bbox_size), str(half_bbox_size), str(half_bbox_size),
+            '--obb-center', '0', '0', '0',
+            '--obb-rotation', '0', '0', '0',
+            '--obb-scale', str(args.bbox_size), str(args.bbox_size), str(args.bbox_size),
         ])
+        result.check_returncode()
 
-        # Calling ns-render 
+        # Calling ns-render
         result = subprocess.run([
             'ns-render', 'dataset',
             '--load-config', os.path.join(ns_dir, 'config.yml'),
@@ -69,6 +79,7 @@ if __name__ == '__main__':
             '--rendered-output-names', 'raw-depth',
             '--split', 'train+test',
         ])
+        result.check_returncode()
 
         # Collect all depths in one folder
         os.makedirs(os.path.join(base_dir, 'renders', 'depth'), exist_ok=True)
