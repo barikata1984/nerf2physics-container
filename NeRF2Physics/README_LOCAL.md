@@ -195,10 +195,11 @@ echo "import os; OPENAI_API_KEY = os.environ['OPENAI_API_KEY']" >> my_api_key.py
 export OPENAI_API_KEY=...   # set this in your own shell / .env, never commit it
 ```
 
-Note: `gpt_model_name` defaults to `gpt-3.5-turbo` (`arguments.py`), which may
-no longer be available on your OpenAI account by the time you run this —
-override with `--gpt_model_name` if needed. This does not change prompt
-semantics or output parsing.
+Note: `gpt_model_name` defaults to `gpt-3.5-turbo` (`arguments.py`). OpenAI
+deprecated it on 2026-04-22 and shuts it down on **2026-10-23** (per their
+deprecations page); after that, override with `--gpt_model_name <current model>`.
+This does not change prompt semantics or output parsing. The committed
+`results/sledgehammer/info_new.json` lets the reproduction skip this step entirely.
 
 ### Alternative: Anthropic (Claude) instead of OpenAI
 
