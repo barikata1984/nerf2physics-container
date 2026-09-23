@@ -25,6 +25,8 @@ def get_args():
                         help='near plane for ray sampling (default: 0.4)')
     parser.add_argument('--far_plane', type=float, default=6.0,
                         help='far plane for ray sampling (default: 6.0)')
+    parser.add_argument('--nerf_seed', type=int, default=-1,
+                        help='nerfstudio --machine.seed for ns-train (default: -1 = leave nerfstudio default, 42)')
     parser.add_argument('--proposal_initial_sampler', type=str, default='uniform', choices=['uniform', 'piecewise'],
                         help='nerfacto proposal-initial-sampler (default: uniform, as upstream hard-coded). '
                              'uniform over [near, far] under-samples small/thin objects -- see README_LOCAL.md')

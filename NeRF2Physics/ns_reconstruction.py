@@ -39,7 +39,7 @@ if __name__ == '__main__':
             '--pipeline.model.near-plane', str(args.near_plane),
             '--pipeline.model.far-plane', str(args.far_plane),
             '--steps-per-eval-image', '10000',
-        ])
+        ] + (['--machine.seed', str(args.nerf_seed)] if args.nerf_seed >= 0 else []))
         result.check_returncode()
 
         ns_dir = get_last_file_in_folder(os.path.join(base_dir, '%s/nerfacto' % scene))
